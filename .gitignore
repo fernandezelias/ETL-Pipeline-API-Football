@@ -1,15 +1,25 @@
-# --- Proyecto ETL_API_Football ---
+# ==========================================================
+# ETL_API_Football - .gitignore
+# ==========================================================
 
-# Carpetas de datos locales (no se suben al repo)
+# --- Data folders ---
 data/
 datalake/
 
-# Compilados de Python
+# --- Python cache ---
 __pycache__/
 *.pyc
 
-# Archivos temporales de Jupyter
-.ipynb_checkpoints
+# --- Jupyter notebooks ---
+.ipynb_checkpoints/
 
-# Configuración local / sensible
+# --- Local configuration ---
 pipeline.conf
+
+# --- Local environments ---
+.venv/
+.env/
+
+# --- Logs ---
+logs/
+*.log
