@@ -2,79 +2,70 @@
 
 🌐 Available in: [English](README_EN.md)
 
-Proyecto de **Ingeniería de Datos** que implementa un pipeline **ETL automatizado** para la ingesta, transformación y almacenamiento de datos provenientes de la **API-Football**.  
-El objetivo es construir una arquitectura de datos reproducible, escalable y organizada en distintas capas (Bronze, Silver, Gold).
+Proyecto de **Ingeniería de Datos** que implementa un pipeline **ETL automatizado** para la ingesta, transformación y almacenamiento de datos de **API-Football**, organizado en capas **Bronze / Silver / Gold** y orquestado con **Prefect**.
 
 ---
 
 ## 🧰 Stack Tecnológico
 - **Lenguaje:** Python 3.11  
-- **Procesamiento distribuido:** PySpark  
-- **Orquestación:** Prefect 3.x  
-- **Almacenamiento:** Data Lake local estructurado (carpetas Bronze/Silver/Gold)  
-- **Versionado y control:** Git / GitHub  
-- **Visualización:** Matplotlib y Seaborn
+- **Orquestación:** Prefect **2.x**  
+- **Procesamiento:** **Pandas**  
+- **Formato/Tablas:** **Delta Lake** (Parquet + `_delta_log`)  
+- **Almacenamiento:** Data Lake local por capas (partición por `event_date`)  
+- **Versionado:** Git / GitHub  
+- **Visualización:** Matplotlib, Seaborn
 
 ---
 
 ## 🧩 Estructura del pipeline
 
-1. **Ingesta (Bronze Layer)**  
-   - Extracción incremental desde la API-Football (endpoints: `countries`, `leagues`, `fixtures`).  
-   - Guardado de archivos crudos en formato `.json` o `.parquet`.  
+1. **Ingesta — Bronze**  
+   - Extracción desde el endpoint dinámico `fixtures` (headers con API key).  
+   - Persistencia en **Delta Lake** con **MERGE** por `fixture_id` y **partición** por `event_date`.
 
-2. **Transformación (Silver Layer)**  
-   - Limpieza y normalización de columnas.  
-   - Conversión de tipos de datos y estandarización de nombres.  
-   - Enriquecimiento de datos con variables derivadas (por ejemplo, `total_goals`, `match_winner`).  
+2. **Transformación — Silver**  
+   - Limpieza/normalización (renombrado, casteos, null-safe en columnas de score).  
+   - Persistencia incremental en Delta (mismo merge/partición).
 
-3. **Curación y análisis (Gold Layer)**  
-   - Consolidación de datasets listos para análisis y visualización.  
-   - Cálculo de métricas de rendimiento (promedios de goles, distribución home/away, etc.).  
-   - Exportación final a formatos `.csv` o `.parquet`.
+3. **Curación — Gold**  
+   - Dataset curado para análisis (columnas relevantes).  
+   - Exportables en **CSV** y **Parquet**.
 
 ---
 
-## ⚙️ Flujo general
+## ⚙️ Árbol (simplificado)
 
-```bash
-etl_api_football/
-│
-├── bronze/
-│   └── api_raw_data/
-├── silver/
-│   └── api_cleaned/
-├── gold/
-│   └── api_curated/
-├── exports/
-└── src/
-    ├── etl_fixtures.py
-    ├── etl_utils.py
-    └── prefect_flow.py
 ```
-
-Cada etapa del proceso es modular y puede ejecutarse de forma independiente mediante Prefect.  
+data/etl_datalake/
+├── bronze/api_football/fixtures/
+├── silver/api_football/fixtures/
+├── gold/api_football/fixtures/
+└── exports/
+scripts/
+├── etl_fixtures.py
+└── etl_utils.py
+notebooks/
+├── ETL_API_Football.ipynb               # versión manual
+└── ETL_API_Football_Prefect.ipynb       # orquestación
+```
 
 ---
 
 ## 📊 Resultados principales
-- Pipeline reproducible y escalable con **procesamiento incremental** por fecha.  
-- Integración entre **Spark y Prefect** para automatización local.  
-- Datasets listos para visualizaciones y análisis exploratorio (Poisson de goles, distribución local/visitante, etc.).
+- Ingesta incremental con **MERGE por `fixture_id`** y **partición por `event_date`**.  
+- Orquestación en Prefect 2.x (reintentos, trazabilidad de runs).  
+- Datasets listos para análisis (ej.: goles totales, ganador del partido, home/away).
 
 ---
 
 ## 🧠 Conclusión
-Este proyecto muestra la aplicación práctica de principios de **Data Engineering**, combinando buenas prácticas de arquitectura de datos y orquestación de procesos.  
-La estructura modular permite su extensión futura hacia plataformas cloud (por ejemplo, **Google Cloud Storage** o **Databricks**).
+Pipeline **end-to-end** reproducible y extensible. La modularidad permite migrar a cloud (GCS/Databricks) sin cambios de modelo de datos.
 
 ---
 
 ## ✍️ Autor
-**Elías Fernández**  
-📧 Contacto: [fernandezelias86@gmail.com](mailto:fernandezelias86@gmail.com)  
-🔗 [LinkedIn](https://www.linkedin.com/in/eliasfernandez208)
+**Elías Fernández** — [fernandezelias86@gmail.com](mailto:fernandezelias86@gmail.com) — [LinkedIn](https://www.linkedin.com/in/eliasfernandez208)
 
 ---
 
-📁 **Repositorio:** ETL_API_Football  
+📁 **Repositorio:** ETL_API_Football
