@@ -64,7 +64,9 @@ Pipeline **end-to-end** reproducible y extensible. La modularidad permite migrar
 ---
 
 ## ✍️ Autor
-**Elías Fernández** — [fernandezelias86@gmail.com](mailto:fernandezelias86@gmail.com) — [LinkedIn](https://www.linkedin.com/in/eliasfernandez208)
+**Elías Fernández**  
+📧 Contacto: fernandezelias86@gmail.com  
+🔗 LinkedIn: www.linkedin.com/in/eliasfernandez208
 
 ---
 
