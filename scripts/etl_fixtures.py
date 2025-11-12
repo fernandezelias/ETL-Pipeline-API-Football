@@ -177,5 +177,14 @@ def etl_parametrizable(endpoints: list):
 
 
 if __name__ == "__main__":
+    # Opción A — Ejecución manual (demo o validación local)
+    # Ejecuta el flujo una sola vez para probar la orquestación
     etl_parametrizable(endpoints=["fixtures"])
-    # etl_parametrizable.serve(name="ETL-Fixtures", endpoints=["fixtures"])  # opcional
+
+    # Opción B — Ejecución automatizada (opcional, desactivada por defecto)
+    # Sirve el flujo como servicio local con programación diaria
+    # etl_parametrizable.serve(
+    #     name="ETL-Fixtures",
+    #     endpoints=["fixtures"],
+    #     cron="0 6 * * *"  # Una vez al día, 06:00 UTC (ver https://crontab.guru)
+    # )
