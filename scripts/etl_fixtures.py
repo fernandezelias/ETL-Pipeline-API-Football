@@ -127,33 +127,38 @@ def transform_to_silver(endpoint_name: str) -> pd.DataFrame:
 
 @task(task_run_name="to_gold-{endpoint_name}")
 def transform_to_gold_from_silver(endpoint_name: str) -> pd.DataFrame:
-    """Lee todas las particiones de Silver, normaliza tipos y persiste subset en Gold + exporta."""
+    """
+    Lee todas las particiones de Silver, normaliza tipos y persiste
+    el subset final en la capa Gold utilizando Delta Lake.
+    """
+    # Lectura completa desde Silver
     df_silver_all = read_all_from_delta(SILVER_FIXTURES).copy()
 
+    # Normalización de tipos
     df_silver_all = cast_column_types(df_silver_all)
     df_silver_all = cast_gold_categoricals(df_silver_all)
     df_silver_all = ensure_event_date_utc(df_silver_all)
 
+    # Subset final para Gold
     df_to_save = df_silver_all[[
         "fixture_id", "event_date", "league_id", "league_name",
         "teams_home_name", "teams_away_name",
         "goals_home", "goals_away", "match_winner",
     ]].copy()
 
+    # Normalización final de fecha
     df_to_save["event_date"] = pd.to_datetime(df_to_save["event_date"]).dt.strftime("%Y-%m-%d")
 
+    # Crear carpeta Gold si no existe
     os.makedirs(GOLD_FIXTURES, exist_ok=True)
-    os.makedirs(EXPORTS_DIR, exist_ok=True)
 
+    # Guardado en Gold mediante MERGE / UPSERT
     save_new_data_as_delta(
         df_to_save,
         GOLD_FIXTURES,
         predicate="target.fixture_id = source.fixture_id",
         partition_cols=["event_date"],
     )
-
-    df_to_save.to_csv(f"{EXPORTS_DIR}/{endpoint_name}_gold.csv", index=False)
-    df_to_save.to_parquet(f"{EXPORTS_DIR}/{endpoint_name}_gold.parquet", index=False)
 
     return df_silver_all
 
