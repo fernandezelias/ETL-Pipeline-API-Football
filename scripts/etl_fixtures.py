@@ -1,9 +1,9 @@
-# etl_fixtures.py
-# Script base para orquestación con Prefect
+# ==========================================================
+# etl_fixtures.py — Orquestación ETL para API-Football
+# ==========================================================
 
 # --- Librerías estándar ---
 import os
-import time  # pausa opcional entre requests (rate limit)
 from datetime import datetime, timedelta
 from configparser import ConfigParser
 
@@ -33,13 +33,16 @@ from etl_utils import (
     ensure_event_date_utc,
 )
 
-# --- Configuración de credenciales ---
+# ==========================================================
+# Configuración
+# ==========================================================
+
 parser = ConfigParser()
 parser.read("pipeline.conf")
 BASE_URL = parser["api-credentials"]["base_url"]
 API_KEY  = parser["api-credentials"]["api_key"]
 
-# --- Paths del datalake ---
+# --- Paths del Data Lake ---
 DATALAKE_ROOT   = "data/etl_datalake"
 BRONZE_FIXTURES = f"{DATALAKE_ROOT}/bronze/api_football/fixtures"
 SILVER_FIXTURES = f"{DATALAKE_ROOT}/silver/api_football/fixtures"
@@ -47,48 +50,50 @@ GOLD_FIXTURES   = f"{DATALAKE_ROOT}/gold/api_football/fixtures"
 EXPORTS_DIR     = f"{DATALAKE_ROOT}/exports"
 
 
-# -------------------- Tasks --------------------
+# ==========================================================
+# Tasks
+# ==========================================================
 
 @task(
     retries=3,
     retry_delay_seconds=60,
-    task_run_name="get_data-{endpoint}"
+    task_run_name="extract-api-football-{endpoint}"
 )
-def extract_data(endpoint: str, params: dict = None) -> list:
-    """Extrae datos crudos desde la API-Football para el endpoint indicado."""
-    data_url = f"{BASE_URL}/{endpoint}"
+def task_extract(endpoint: str, params: dict = None) -> list:
+    """Extrae datos crudos desde el endpoint indicado de API-Football."""
+    url = f"{BASE_URL}/{endpoint}"
+
     response = requests.get(
-        data_url,
+        url,
         headers={"x-apisports-key": API_KEY},
         params=params,
         timeout=30
     )
     response.raise_for_status()
+
     return response.json()["response"]
 
 
-@task(task_run_name="transform_data")
-def transform_data(data: list) -> pd.DataFrame:
-    """Transforma los datos extraídos en un DataFrame plano y aplica limpieza inicial."""
-    df = pd.json_normalize(data)
+@task(task_run_name="transform-bronze")
+def task_transform_bronze(raw_data: list) -> pd.DataFrame:
+    """Transformación inicial del JSON → DataFrame normalizado."""
+    df = pd.json_normalize(raw_data)
     df = rename_fixture_id(df)
     return df
 
 
-@task(task_run_name="load_data-{endpoint_name}")
-def load_data(df: pd.DataFrame, endpoint_name: str):
-    """Guarda los datos transformados en la capa Bronze del datalake (particionado por event_date)."""
+@task(task_run_name="load-bronze-{endpoint_name}")
+def task_load_bronze(df: pd.DataFrame, endpoint_name: str):
+    """Guarda datos en Bronze (MERGE + partición por event_date)."""
     scheduled_run = flow_run.scheduled_start_time.strftime("%Y-%m-%dT%H:%M")
 
     # Normalización mínima
     df = normalize_score_cols_to_float(df)
     df = add_event_date_from_fixture_date(df)
 
-    # Directorio Bronze específico para el endpoint
     bronze_path = f"{DATALAKE_ROOT}/bronze/api_football/{endpoint_name}"
     os.makedirs(bronze_path, exist_ok=True)
 
-    # Guardado en Bronze usando MERGE por fixture_id y partición por event_date
     save_new_data_as_delta(
         df,
         bronze_path,
@@ -96,100 +101,109 @@ def load_data(df: pd.DataFrame, endpoint_name: str):
         partition_cols=["event_date"],
     )
 
-    print(f"Datos de {endpoint_name} guardados en Bronze ({scheduled_run})")
+    print(f"📥 Bronze actualizado para {endpoint_name} ({scheduled_run})")
 
 
-@task(task_run_name="to_silver-{endpoint_name}")
-def transform_to_silver(endpoint_name: str) -> pd.DataFrame:
-    """Lee la partición más reciente de Bronze, aplica transformaciones de Silver y guarda."""
-    df_bronze_persisted = read_most_recent_partition(BRONZE_FIXTURES)
+@task(task_run_name="transform-silver-{endpoint_name}")
+def task_transform_silver(endpoint_name: str) -> pd.DataFrame:
+    """Procesa los datos persistidos en Bronze → Silver."""
+    df_bronze = read_most_recent_partition(BRONZE_FIXTURES)
 
-    df_silver = df_bronze_persisted.copy()
-    df_silver = standardize_column_names(df_silver)
-    df_silver = format_datetime_columns(df_silver)
-    df_silver = drop_irrelevant_cols(df_silver)
-    df_silver = add_match_winner(df_silver)
-    df_silver = add_total_goals(df_silver)
-    df_silver = cast_column_types(df_silver)
+    df = df_bronze.copy()
+    df = standardize_column_names(df)
+    df = format_datetime_columns(df)
+    df = drop_irrelevant_cols(df)
+    df = add_match_winner(df)
+    df = add_total_goals(df)
+    df = cast_column_types(df)
 
-    df_silver = add_event_date_from_fixture_date(df_silver)
-    df_silver["event_date"] = pd.to_datetime(df_silver["event_date"]).dt.strftime("%Y-%m-%d")
+    # Normalización temporal
+    df = add_event_date_from_fixture_date(df)
+    df["event_date"] = pd.to_datetime(df["event_date"]).dt.strftime("%Y-%m-%d")
 
     os.makedirs(SILVER_FIXTURES, exist_ok=True)
+
     save_new_data_as_delta(
-        df_silver,
+        df,
         SILVER_FIXTURES,
         predicate="target.fixture_id = source.fixture_id",
         partition_cols=["event_date"],
     )
-    return df_silver
+
+    return df
 
 
-@task(task_run_name="to_gold-{endpoint_name}")
-def transform_to_gold_from_silver(endpoint_name: str) -> pd.DataFrame:
-    """
-    Lee todas las particiones de Silver, normaliza tipos y persiste
-    el subset final en la capa Gold utilizando Delta Lake.
-    """
-    # Lectura completa desde Silver
+@task(task_run_name="transform-gold-{endpoint_name}")
+def task_transform_gold(endpoint_name: str) -> pd.DataFrame:
+    """Genera la tabla Gold desde todos los datos de Silver."""
     df_silver_all = read_all_from_delta(SILVER_FIXTURES).copy()
 
-    # Normalización de tipos
     df_silver_all = cast_column_types(df_silver_all)
     df_silver_all = cast_gold_categoricals(df_silver_all)
     df_silver_all = ensure_event_date_utc(df_silver_all)
 
-    # Subset final para Gold
-    df_to_save = df_silver_all[[
+    df_gold = df_silver_all[[
         "fixture_id", "event_date", "league_id", "league_name",
         "teams_home_name", "teams_away_name",
         "goals_home", "goals_away", "match_winner",
     ]].copy()
 
-    # Normalización final de fecha
-    df_to_save["event_date"] = pd.to_datetime(df_to_save["event_date"]).dt.strftime("%Y-%m-%d")
+    df_gold["event_date"] = pd.to_datetime(df_gold["event_date"]).dt.strftime("%Y-%m-%d")
 
-    # Crear carpeta Gold si no existe
     os.makedirs(GOLD_FIXTURES, exist_ok=True)
 
-    # Guardado en Gold mediante MERGE / UPSERT
     save_new_data_as_delta(
-        df_to_save,
+        df_gold,
         GOLD_FIXTURES,
         predicate="target.fixture_id = source.fixture_id",
         partition_cols=["event_date"],
     )
 
-    return df_silver_all
+    return df_gold
 
 
-# -------------------- Flow --------------------
+# ==========================================================
+# Flow
+# ==========================================================
 
-@flow
-def etl_parametrizable(endpoints: list):
+@flow(name="etl-api-football")
+def etl_api_football(endpoints: list):
+    """Flow maestro para procesar uno o más endpoints de API-Football."""
     for endpoint in endpoints:
+
+        # 1. Cálculo dinámico de parámetros (solo fixtures)
         params = None
         if endpoint == "fixtures":
             fecha_ayer = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
             params = {"date": fecha_ayer, "timezone": "UTC"}
 
-        data = extract_data(endpoint, params=params)
-        df_bronze = transform_data(data)
+        # 2. Extracción
+        raw = task_extract(endpoint, params=params)
 
-        load_data(df_bronze, endpoint)
-        transform_to_silver(endpoint)
-        transform_to_gold_from_silver(endpoint)
+        # 3. Transformación Bronze
+        df_bronze = task_transform_bronze(raw)
 
+        # 4. Guardado Bronze
+        task_load_bronze(df_bronze, endpoint)
+
+        # 5. Transformación Silver
+        task_transform_silver(endpoint)
+
+        # 6. Transformación Gold
+        task_transform_gold(endpoint)
+
+
+# ==========================================================
+# Main
+# ==========================================================
 
 if __name__ == "__main__":
-    # Opción A — Ejecución manual (demo o validación local)
-    # Ejecuta el flujo una sola vez para probar la orquestación
-    etl_parametrizable(endpoints=["fixtures"])
+    # Opción A — ejecución manual (una sola vez)
+    etl_api_football(endpoints=["fixtures"])
 
-    # Opción B — Ejecución automatizada (opcional, desactivada por defecto)
-    # Sirve el flujo como servicio local con programación diaria
-    # etl_parametrizable.serve(
-    #     name="ETL-Fixtures",
+    # Opción B — ejecución programada (DESACTIVADA)
+    # etl_api_football.serve(
+    #     name="ETL-API-Football",
     #     endpoints=["fixtures"],
-    #     cron="0 6 * * *"  # Una vez al día, 06:00 UTC (ver https://crontab.guru)
+    #     cron="0 6 * * *"   # todos los días a las 06:00 UTC
     # )
