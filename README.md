@@ -51,6 +51,30 @@ notebooks/
 
 ---
 
+## 🔄 Diagrama del pipeline (Mermaid)
+
+```mermaid
+flowchart TD
+
+A[📥 Extracción<br>API-Football - fixtures] --> B[🟤 Bronze<br>normalización + MERGE por fixture_id]
+B --> C[🥈 Silver<br>cleaning + cast + score null-safe]
+C --> D[🟡 Gold<br>dataset curado para análisis]
+
+subgraph Bronze
+A --> B
+end
+
+subgraph Silver
+B --> C
+end
+
+subgraph Gold
+C --> D
+end
+```
+
+---
+
 ## 📊 Resultados principales
 - Ingesta incremental con **MERGE por `fixture_id`** y **partición por `event_date`**.  
 - Orquestación en Prefect 2.x (reintentos, trazabilidad de runs).  
