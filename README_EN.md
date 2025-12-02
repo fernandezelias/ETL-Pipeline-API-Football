@@ -1,6 +1,6 @@
 # ⚽ Football Data ETL Pipeline (API-Football)
 
-🌐 Disponible en: [Español](README.md)
+🌐 Disponible en [Español](README.md)
 
 Data Engineering project that implements an **automated ETL pipeline** for ingesting, transforming, and storing **API-Football** data, organized into **Bronze / Silver / Gold** layers and orchestrated with **Prefect**.
 
