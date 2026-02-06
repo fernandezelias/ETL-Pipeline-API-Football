@@ -1,6 +1,6 @@
 # ⚽ ETL Pipeline de Datos de Fútbol (API-Football)
 
-🌐 Available in [English](README_EN.md)
+🌐 **Available in English:** [README_EN.md](README_EN.md)
 
 Proyecto de **Ingeniería de Datos** que implementa un pipeline **ETL automatizado** para la ingesta, transformación y almacenamiento de datos de **API-Football**, organizado en capas **Bronze / Silver / Gold** y orquestado con **Prefect**.
 
@@ -90,7 +90,7 @@ Pipeline **end-to-end** reproducible y extensible. La modularidad permite migrar
 ## ✍️ Autor
 **Elías Fernández**  
 📧 Contacto: fernandezelias86@gmail.com  
-🔗 LinkedIn: www.linkedin.com/in/eliasfernandez208
+🔗 LinkedIn: [Perfil](https://www.linkedin.com/in/eliasfernandez208)
 
 ---
 
