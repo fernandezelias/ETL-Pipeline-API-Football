@@ -89,7 +89,7 @@ An **end-to-end** reproducible and extensible pipeline. Its modular design allow
 
 ## ✍️ Author
 **Elías Fernández**  
-📧 Contacto: fernandezelias86@gmail.com  
+📧 Contact: fernandezelias86@gmail.com 
 🔗 LinkedIn: [Profile](https://www.linkedin.com/in/eliasfernandez208)
 
 ---
