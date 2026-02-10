@@ -87,11 +87,17 @@ Pipeline **end-to-end** reproducible y extensible. La modularidad permite migrar
 
 ---
 
-## ✍️ Autor
-**Elías Fernández**  
-📧 Contacto: fernandezelias86@gmail.com  
-🔗 LinkedIn: [Perfil](https://www.linkedin.com/in/eliasfernandez208)
+## 🪪 Licencia
+Este proyecto se distribuye bajo la licencia MIT.  
+Ver archivo [LICENSE](LICENSE).
 
 ---
 
-📁 **Repositorio:** ETL_API_Football
+## ✍️ Autor
+**Elías Fernández**
+
+---
+
+## 📫 Contacto
+📧 [fernandezelias86@gmail.com](mailto:fernandezelias86@gmail.com)  
+🔗 LinkedIn: [Perfil](https://www.linkedin.com/in/eliasfernandez208)
