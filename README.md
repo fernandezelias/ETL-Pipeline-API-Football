@@ -82,7 +82,7 @@ end
 
 ---
 
-## 🧠 Conclusión
+## 🧾 Conclusión
 Pipeline **end-to-end** reproducible y extensible. La modularidad permite migrar a cloud (GCS/Databricks) sin cambios de modelo de datos.
 
 ---
