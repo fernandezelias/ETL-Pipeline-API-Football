@@ -82,7 +82,7 @@ end
 
 ---
 
-## 🧠 Conclusion
+## 🧾 Conclusion
 An **end-to-end** reproducible and extensible pipeline. Its modular design allows future migration to cloud platforms (GCS/Databricks) with no data model changes.
 
 ---
